@@ -1,0 +1,714 @@
+DENTIFICATION DIVISION.
+       PROGRAM-ID. PAYROLL.
+
+
+       ENVIRONMENT DIVISION.
+       INPUT-OUTPUT SECTION.
+       FILE-CONTROL.
+           SELECT EMPLOYEE-FILE ASSIGN TO "employees.dat"
+               ORGANIZATION IS LINE SEQUENTIAL.
+
+
+       DATA DIVISION.
+       FILE SECTION.
+       FD EMPLOYEE-FILE.
+       01 EMPLOYEE-FILE-RECORD.
+           05 FILE-EMP-ID            PIC 9(5).
+           05 FILLER                 PIC X VALUE "|".
+           05 FILE-EMP-NAME          PIC X(30).
+           05 FILLER                 PIC X VALUE "|".
+           05 FILE-DEPARTMENT        PIC X(20).
+           05 FILLER                 PIC X VALUE "|".
+           05 FILE-HOURS-WORKED      PIC 9(3)V99.
+           05 FILLER                 PIC X VALUE "|".
+           05 FILE-HOURLY-RATE       PIC 9(3)V99.
+           05 FILLER                 PIC X VALUE "|".
+           05 FILE-GROSS-PAY         PIC 9(5)V99.
+           05 FILLER                 PIC X VALUE "|".
+           05 FILE-TAX-AMOUNT        PIC 9(5)V99.
+           05 FILLER                 PIC X VALUE "|".
+           05 FILE-NET-PAY           PIC 9(5)V99.
+           05 FILLER                 PIC X VALUE "|".
+           05 FILE-PAYROLL-PROCESSED PIC X.
+           05 FILLER                 PIC X VALUE "|".
+           05 FILE-OVERTIME-HOURS    PIC 9(3)V99.
+           05 FILLER                 PIC X VALUE "|".
+           05 FILE-OVERTIME-PAY      PIC 9(5)V99.
+           05 FILLER                 PIC X VALUE "|".
+           05 FILE-REGULAR-PAY       PIC 9(5)V99.
+           05 FILLER                 PIC X VALUE "|".
+           05 FILE-ACTIVE-FLAG       PIC X.
+
+
+       WORKING-STORAGE SECTION.
+       01 WS-MENU-CHOICE         PIC 9 VALUE 0.
+       01 WS-EXIT-FLAG           PIC X VALUE 'N'.
+
+
+       01 WS-EMPLOYEE-COUNT      PIC 99 VALUE 0.
+       01 WS-MAX-EMPLOYEES       PIC 99 VALUE 10.
+       01 WS-CURRENT-INDEX       PIC 99 VALUE 0.
+       01 WS-SEARCH-INDEX        PIC 99 VALUE 0.
+       01 WS-SEARCH-ID           PIC 9(5) VALUE 0.
+       01 WS-FOUND-FLAG          PIC X VALUE 'N'.
+       01 WS-END-OF-FILE         PIC X VALUE 'N'.
+       01 WS-SAVE-INDEX          PIC 99 VALUE 0.
+
+
+       01 WS-TEMP-EMP-ID         PIC 9(5) VALUE 0.
+       01 WS-TEMP-EMP-NAME       PIC X(30) VALUE SPACES.
+       01 WS-TEMP-DEPARTMENT     PIC X(20) VALUE SPACES.
+       01 WS-TEMP-HOURS-WORKED   PIC 9(3)V99 VALUE 0.
+       01 WS-TEMP-HOURLY-RATE    PIC 9(3)V99 VALUE 0.
+
+
+       01 WS-EMPLOYEE-TABLE.
+           05 WS-EMPLOYEE-RECORD OCCURS 10 TIMES.
+               10 WS-EMP-ID            PIC 9(5) VALUE 0.
+               10 WS-EMP-NAME          PIC X(30) VALUE SPACES.
+               10 WS-DEPARTMENT        PIC X(20) VALUE SPACES.
+               10 WS-HOURS-WORKED      PIC 9(3)V99 VALUE 0.
+               10 WS-HOURLY-RATE       PIC 9(3)V99 VALUE 0.
+               10 WS-GROSS-PAY         PIC 9(5)V99 VALUE 0.
+               10 WS-TAX-AMOUNT        PIC 9(5)V99 VALUE 0.
+               10 WS-NET-PAY           PIC 9(5)V99 VALUE 0.
+               10 WS-PAYROLL-PROCESSED PIC X VALUE 'N'.
+               10 WS-OVERTIME-HOURS    PIC 9(3)V99 VALUE 0.
+               10 WS-OVERTIME-PAY      PIC 9(5)V99 VALUE 0.
+               10 WS-REGULAR-PAY       PIC 9(5)V99 VALUE 0.
+               10 WS-ACTIVE-FLAG       PIC X VALUE 'N'.
+
+
+       PROCEDURE DIVISION.
+           PERFORM MAIN-PROCESS
+           STOP RUN.
+
+
+       MAIN-PROCESS.
+           PERFORM UNTIL WS-EXIT-FLAG = 'Y'
+               PERFORM DISPLAY-MENU
+               ACCEPT WS-MENU-CHOICE
+
+
+               EVALUATE WS-MENU-CHOICE
+                   WHEN 1
+                       PERFORM ADD-EMPLOYEE
+                   WHEN 2
+                       PERFORM SEARCH-EMPLOYEE
+                   WHEN 3
+                       PERFORM VIEW-EMPLOYEE
+                   WHEN 4
+                       PERFORM UPDATE-EMPLOYEE
+                   WHEN 5
+                       PERFORM PROCESS-PAYROLL
+                   WHEN 6
+                       PERFORM DISPLAY-REPORT
+                   WHEN 7
+                       PERFORM DELETE-EMPLOYEE
+                   WHEN 8
+                       PERFORM SAVE-EMPLOYEES
+                   WHEN 9
+                       PERFORM LOAD-EMPLOYEES
+                   WHEN 0
+                       MOVE 'Y' TO WS-EXIT-FLAG
+                       DISPLAY "Exiting Payroll System..."
+                   WHEN OTHER
+                       DISPLAY "Invalid choice. Please enter 0 to 9."
+               END-EVALUATE
+           END-PERFORM.
+
+
+       DISPLAY-MENU.
+           DISPLAY "========================================"
+           DISPLAY "        PAYROLL MANAGEMENT SYSTEM       "
+           DISPLAY "========================================"
+           DISPLAY "1. Add Employee"
+           DISPLAY "2. Search Employee"
+           DISPLAY "3. View Current Employee"
+           DISPLAY "4. Update Current Employee"
+           DISPLAY "5. Process Current Payroll"
+           DISPLAY "6. Display Current Payroll Report"
+           DISPLAY "7. Delete Current Employee"
+           DISPLAY "8. Save Employees to File"
+           DISPLAY "9. Load Employees from File"
+           DISPLAY "0. Exit"
+           DISPLAY "Enter choice: ".
+
+
+       ADD-EMPLOYEE.
+           IF WS-EMPLOYEE-COUNT >= WS-MAX-EMPLOYEES
+               DISPLAY " "
+               DISPLAY "Employee table is full. Cannot add more."
+               DISPLAY " "
+           ELSE
+               MOVE 0 TO WS-TEMP-EMP-ID
+               MOVE SPACES TO WS-TEMP-EMP-NAME
+               MOVE SPACES TO WS-TEMP-DEPARTMENT
+               MOVE 0 TO WS-TEMP-HOURS-WORKED
+               MOVE 0 TO WS-TEMP-HOURLY-RATE
+
+
+               DISPLAY " "
+               DISPLAY "========== ADD EMPLOYEE =========="
+               DISPLAY "Enter Employee ID: "
+               ACCEPT WS-TEMP-EMP-ID
+
+
+               IF WS-TEMP-EMP-ID = 0
+                   DISPLAY "Invalid Employee ID. Employee was not added."
+                   DISPLAY " "
+               ELSE
+                   MOVE 'N' TO WS-FOUND-FLAG
+                   PERFORM VARYING WS-SEARCH-INDEX FROM 1 BY 1
+                       UNTIL WS-SEARCH-INDEX > WS-MAX-EMPLOYEES
+                       OR WS-FOUND-FLAG = 'Y'
+                       IF WS-ACTIVE-FLAG (WS-SEARCH-INDEX) = 'Y'
+                          AND WS-EMP-ID (WS-SEARCH-INDEX) =
+                              WS-TEMP-EMP-ID
+                           MOVE 'Y' TO WS-FOUND-FLAG
+                       END-IF
+                   END-PERFORM
+
+
+                   IF WS-FOUND-FLAG = 'Y'
+                       DISPLAY "Employee ID already exists."
+                       DISPLAY " "
+                   ELSE
+                       DISPLAY "Enter Employee Name: "
+                       ACCEPT WS-TEMP-EMP-NAME
+
+
+                       DISPLAY "Enter Department: "
+                       ACCEPT WS-TEMP-DEPARTMENT
+
+
+                       DISPLAY "Enter Hours Worked: "
+                       ACCEPT WS-TEMP-HOURS-WORKED
+
+
+                       IF WS-TEMP-HOURS-WORKED = 0
+                           DISPLAY "Invalid Hours Worked."
+                           DISPLAY "Employee was not added."
+                           DISPLAY " "
+                       ELSE
+                           DISPLAY "Enter Hourly Rate: "
+                           ACCEPT WS-TEMP-HOURLY-RATE
+
+
+                           IF WS-TEMP-HOURLY-RATE = 0
+                               DISPLAY "Invalid Hourly Rate."
+                               DISPLAY "Employee was not added."
+                               DISPLAY " "
+                           ELSE
+                               MOVE 0 TO WS-CURRENT-INDEX
+                               PERFORM VARYING WS-SEARCH-INDEX
+                                   FROM 1 BY 1
+                                   UNTIL WS-SEARCH-INDEX >
+                                       WS-MAX-EMPLOYEES
+                                   OR WS-CURRENT-INDEX > 0
+                                   IF WS-ACTIVE-FLAG
+                                      (WS-SEARCH-INDEX) NOT = 'Y'
+                                       MOVE WS-SEARCH-INDEX
+                                           TO WS-CURRENT-INDEX
+                                   END-IF
+                               END-PERFORM
+
+
+                               IF WS-CURRENT-INDEX = 0
+                                   DISPLAY "No open employee slot found."
+                                   DISPLAY " "
+                               ELSE
+                                   MOVE WS-TEMP-EMP-ID
+                                       TO WS-EMP-ID
+                                          (WS-CURRENT-INDEX)
+                                   MOVE WS-TEMP-EMP-NAME
+                                       TO WS-EMP-NAME
+                                          (WS-CURRENT-INDEX)
+                                   MOVE WS-TEMP-DEPARTMENT
+                                       TO WS-DEPARTMENT
+                                          (WS-CURRENT-INDEX)
+                                   MOVE WS-TEMP-HOURS-WORKED
+                                       TO WS-HOURS-WORKED
+                                          (WS-CURRENT-INDEX)
+                                   MOVE WS-TEMP-HOURLY-RATE
+                                       TO WS-HOURLY-RATE
+                                          (WS-CURRENT-INDEX)
+
+
+                                   MOVE 0 TO WS-GROSS-PAY
+                                       (WS-CURRENT-INDEX)
+                                   MOVE 0 TO WS-TAX-AMOUNT
+                                       (WS-CURRENT-INDEX)
+                                   MOVE 0 TO WS-NET-PAY
+                                       (WS-CURRENT-INDEX)
+                                   MOVE 0 TO WS-REGULAR-PAY
+                                       (WS-CURRENT-INDEX)
+                                   MOVE 0 TO WS-OVERTIME-HOURS
+                                       (WS-CURRENT-INDEX)
+                                   MOVE 0 TO WS-OVERTIME-PAY
+                                       (WS-CURRENT-INDEX)
+                                   MOVE 'N' TO
+                                       WS-PAYROLL-PROCESSED
+                                       (WS-CURRENT-INDEX)
+                                   MOVE 'Y' TO WS-ACTIVE-FLAG
+                                       (WS-CURRENT-INDEX)
+
+
+                                   ADD 1 TO WS-EMPLOYEE-COUNT
+
+
+                                   DISPLAY "Employee added successfully."
+                                   DISPLAY "Current employee selected."
+                                   DISPLAY " "
+                               END-IF
+                           END-IF
+                       END-IF
+                   END-IF
+               END-IF
+           END-IF.
+
+
+       SEARCH-EMPLOYEE.
+           DISPLAY " "
+           DISPLAY "========== SEARCH EMPLOYEE =========="
+           DISPLAY "Enter Employee ID to search: "
+           ACCEPT WS-SEARCH-ID
+
+
+           MOVE 'N' TO WS-FOUND-FLAG
+           PERFORM VARYING WS-SEARCH-INDEX FROM 1 BY 1
+               UNTIL WS-SEARCH-INDEX > WS-MAX-EMPLOYEES
+               OR WS-FOUND-FLAG = 'Y'
+               IF WS-ACTIVE-FLAG (WS-SEARCH-INDEX) = 'Y'
+                  AND WS-EMP-ID (WS-SEARCH-INDEX) = WS-SEARCH-ID
+                   MOVE 'Y' TO WS-FOUND-FLAG
+                   MOVE WS-SEARCH-INDEX TO WS-CURRENT-INDEX
+               END-IF
+           END-PERFORM
+
+
+           IF WS-FOUND-FLAG = 'Y'
+               DISPLAY "Employee found and selected."
+               DISPLAY "Employee Name: "
+                   WS-EMP-NAME (WS-CURRENT-INDEX)
+               DISPLAY "Department:    "
+                   WS-DEPARTMENT (WS-CURRENT-INDEX)
+               DISPLAY " "
+           ELSE
+               DISPLAY "Employee not found."
+               DISPLAY " "
+           END-IF.
+
+
+       VIEW-EMPLOYEE.
+           IF WS-CURRENT-INDEX = 0
+               DISPLAY " "
+               DISPLAY "No employee is currently selected."
+               DISPLAY "Use Search Employee first."
+               DISPLAY " "
+           ELSE
+               IF WS-ACTIVE-FLAG (WS-CURRENT-INDEX) NOT = 'Y'
+                   DISPLAY " "
+                   DISPLAY "Current employee record is inactive."
+                   DISPLAY " "
+               ELSE
+                   DISPLAY " "
+                   DISPLAY "========== EMPLOYEE DETAILS =========="
+                   DISPLAY "Employee ID:   "
+                       WS-EMP-ID (WS-CURRENT-INDEX)
+                   DISPLAY "Employee Name: "
+                       WS-EMP-NAME (WS-CURRENT-INDEX)
+                   DISPLAY "Department:    "
+                       WS-DEPARTMENT (WS-CURRENT-INDEX)
+                   DISPLAY "Hours Worked:  "
+                       WS-HOURS-WORKED (WS-CURRENT-INDEX)
+                   DISPLAY "Hourly Rate:   "
+                       WS-HOURLY-RATE (WS-CURRENT-INDEX)
+                   DISPLAY " "
+               END-IF
+           END-IF.
+
+
+       UPDATE-EMPLOYEE.
+           IF WS-CURRENT-INDEX = 0
+               DISPLAY " "
+               DISPLAY "No employee is currently selected."
+               DISPLAY "Use Search Employee first."
+               DISPLAY " "
+           ELSE
+               IF WS-ACTIVE-FLAG (WS-CURRENT-INDEX) NOT = 'Y'
+                   DISPLAY " "
+                   DISPLAY "Current employee record is inactive."
+                   DISPLAY " "
+               ELSE
+                   DISPLAY " "
+                   DISPLAY "========== UPDATE EMPLOYEE =========="
+                   DISPLAY "Updating Employee ID: "
+                       WS-EMP-ID (WS-CURRENT-INDEX)
+
+
+                   DISPLAY "Enter New Employee Name: "
+                   ACCEPT WS-TEMP-EMP-NAME
+
+
+                   DISPLAY "Enter New Department: "
+                   ACCEPT WS-TEMP-DEPARTMENT
+
+
+                   DISPLAY "Enter New Hours Worked: "
+                   ACCEPT WS-TEMP-HOURS-WORKED
+
+
+                   IF WS-TEMP-HOURS-WORKED = 0
+                       DISPLAY "Invalid Hours Worked."
+                       DISPLAY "Update cancelled."
+                       DISPLAY " "
+                   ELSE
+                       DISPLAY "Enter New Hourly Rate: "
+                       ACCEPT WS-TEMP-HOURLY-RATE
+
+
+                       IF WS-TEMP-HOURLY-RATE = 0
+                           DISPLAY "Invalid Hourly Rate."
+                           DISPLAY "Update cancelled."
+                           DISPLAY " "
+                       ELSE
+                           MOVE WS-TEMP-EMP-NAME
+                               TO WS-EMP-NAME (WS-CURRENT-INDEX)
+                           MOVE WS-TEMP-DEPARTMENT
+                               TO WS-DEPARTMENT (WS-CURRENT-INDEX)
+                           MOVE WS-TEMP-HOURS-WORKED
+                               TO WS-HOURS-WORKED (WS-CURRENT-INDEX)
+                           MOVE WS-TEMP-HOURLY-RATE
+                               TO WS-HOURLY-RATE (WS-CURRENT-INDEX)
+
+
+                           MOVE 0 TO WS-GROSS-PAY
+                               (WS-CURRENT-INDEX)
+                           MOVE 0 TO WS-TAX-AMOUNT
+                               (WS-CURRENT-INDEX)
+                           MOVE 0 TO WS-NET-PAY
+                               (WS-CURRENT-INDEX)
+                           MOVE 0 TO WS-REGULAR-PAY
+                               (WS-CURRENT-INDEX)
+                           MOVE 0 TO WS-OVERTIME-HOURS
+                               (WS-CURRENT-INDEX)
+                           MOVE 0 TO WS-OVERTIME-PAY
+                               (WS-CURRENT-INDEX)
+                           MOVE 'N' TO
+                               WS-PAYROLL-PROCESSED
+                               (WS-CURRENT-INDEX)
+
+
+                           DISPLAY "Employee updated successfully."
+                           DISPLAY " "
+                       END-IF
+                   END-IF
+               END-IF
+           END-IF.
+
+
+       PROCESS-PAYROLL.
+           IF WS-CURRENT-INDEX = 0
+               DISPLAY " "
+               DISPLAY "No employee is currently selected."
+               DISPLAY "Use Search Employee first."
+               DISPLAY " "
+           ELSE
+               IF WS-ACTIVE-FLAG (WS-CURRENT-INDEX) NOT = 'Y'
+                   DISPLAY " "
+                   DISPLAY "Current employee record is inactive."
+                   DISPLAY " "
+               ELSE
+                   IF WS-HOURS-WORKED (WS-CURRENT-INDEX) > 40
+                       COMPUTE WS-OVERTIME-HOURS
+                           (WS-CURRENT-INDEX) =
+                           WS-HOURS-WORKED
+                           (WS-CURRENT-INDEX) - 40
+                       COMPUTE WS-REGULAR-PAY
+                           (WS-CURRENT-INDEX) =
+                           40 * WS-HOURLY-RATE
+                           (WS-CURRENT-INDEX)
+                       COMPUTE WS-OVERTIME-PAY
+                           (WS-CURRENT-INDEX) =
+                           WS-OVERTIME-HOURS
+                           (WS-CURRENT-INDEX) *
+                           WS-HOURLY-RATE
+                           (WS-CURRENT-INDEX) * 1.5
+                       COMPUTE WS-GROSS-PAY
+                           (WS-CURRENT-INDEX) =
+                           WS-REGULAR-PAY
+                           (WS-CURRENT-INDEX) +
+                           WS-OVERTIME-PAY
+                           (WS-CURRENT-INDEX)
+                   ELSE
+                       MOVE 0 TO WS-OVERTIME-HOURS
+                           (WS-CURRENT-INDEX)
+                       MOVE 0 TO WS-OVERTIME-PAY
+                           (WS-CURRENT-INDEX)
+                       COMPUTE WS-REGULAR-PAY
+                           (WS-CURRENT-INDEX) =
+                           WS-HOURS-WORKED
+                           (WS-CURRENT-INDEX) *
+                           WS-HOURLY-RATE
+                           (WS-CURRENT-INDEX)
+                       MOVE WS-REGULAR-PAY
+                           (WS-CURRENT-INDEX)
+                           TO WS-GROSS-PAY
+                           (WS-CURRENT-INDEX)
+                   END-IF
+
+
+                   COMPUTE WS-TAX-AMOUNT
+                       (WS-CURRENT-INDEX) =
+                       WS-GROSS-PAY
+                       (WS-CURRENT-INDEX) * 0.15
+
+
+                   COMPUTE WS-NET-PAY
+                       (WS-CURRENT-INDEX) =
+                       WS-GROSS-PAY
+                       (WS-CURRENT-INDEX) -
+                       WS-TAX-AMOUNT
+                       (WS-CURRENT-INDEX)
+
+
+                   MOVE 'Y' TO WS-PAYROLL-PROCESSED
+                       (WS-CURRENT-INDEX)
+
+
+                   DISPLAY " "
+                   DISPLAY "Payroll processed successfully."
+                   DISPLAY "Gross Pay:     "
+                       WS-GROSS-PAY (WS-CURRENT-INDEX)
+                   DISPLAY "Tax Amount:    "
+                       WS-TAX-AMOUNT (WS-CURRENT-INDEX)
+                   DISPLAY "Net Pay:       "
+                       WS-NET-PAY (WS-CURRENT-INDEX)
+                   DISPLAY " "
+               END-IF
+           END-IF.
+
+
+       DISPLAY-REPORT.
+           IF WS-CURRENT-INDEX = 0
+               DISPLAY " "
+               DISPLAY "No employee is currently selected."
+               DISPLAY "Use Search Employee first."
+               DISPLAY " "
+           ELSE
+               IF WS-ACTIVE-FLAG (WS-CURRENT-INDEX) NOT = 'Y'
+                   DISPLAY " "
+                   DISPLAY "Current employee record is inactive."
+                   DISPLAY " "
+               ELSE
+                   IF WS-PAYROLL-PROCESSED
+                      (WS-CURRENT-INDEX) NOT = 'Y'
+                       DISPLAY " "
+                       DISPLAY "Payroll has not been processed yet."
+                       DISPLAY "Please choose option 5 first."
+                       DISPLAY " "
+                   ELSE
+                       DISPLAY " "
+                       DISPLAY "========== PAYROLL REPORT =========="
+                       DISPLAY "Employee ID:      "
+                           WS-EMP-ID (WS-CURRENT-INDEX)
+                       DISPLAY "Employee Name:    "
+                           WS-EMP-NAME (WS-CURRENT-INDEX)
+                       DISPLAY "Department:       "
+                           WS-DEPARTMENT (WS-CURRENT-INDEX)
+                       DISPLAY "Hours Worked:     "
+                           WS-HOURS-WORKED (WS-CURRENT-INDEX)
+                       DISPLAY "Hourly Rate:      "
+                           WS-HOURLY-RATE (WS-CURRENT-INDEX)
+                       DISPLAY "Regular Pay:      "
+                           WS-REGULAR-PAY (WS-CURRENT-INDEX)
+                       DISPLAY "Overtime Hours:   "
+                           WS-OVERTIME-HOURS (WS-CURRENT-INDEX)
+                       DISPLAY "Overtime Pay:     "
+                           WS-OVERTIME-PAY (WS-CURRENT-INDEX)
+                       DISPLAY "Gross Pay:        "
+                           WS-GROSS-PAY (WS-CURRENT-INDEX)
+                       DISPLAY "Tax Amount:       "
+                           WS-TAX-AMOUNT (WS-CURRENT-INDEX)
+                       DISPLAY "Net Pay:          "
+                           WS-NET-PAY (WS-CURRENT-INDEX)
+                       DISPLAY "Status:           Payroll Ready"
+                       DISPLAY "===================================="
+                       DISPLAY " "
+                   END-IF
+               END-IF
+           END-IF.
+
+
+       DELETE-EMPLOYEE.
+           IF WS-CURRENT-INDEX = 0
+               DISPLAY " "
+               DISPLAY "No employee is currently selected."
+               DISPLAY "Use Search Employee first."
+               DISPLAY " "
+           ELSE
+               IF WS-ACTIVE-FLAG (WS-CURRENT-INDEX) NOT = 'Y'
+                   DISPLAY " "
+                   DISPLAY "Current employee record is already inactive."
+                   DISPLAY " "
+               ELSE
+                   MOVE 'N' TO WS-ACTIVE-FLAG (WS-CURRENT-INDEX)
+                   MOVE 0 TO WS-EMP-ID (WS-CURRENT-INDEX)
+                   MOVE SPACES TO WS-EMP-NAME (WS-CURRENT-INDEX)
+                   MOVE SPACES TO WS-DEPARTMENT (WS-CURRENT-INDEX)
+                   MOVE 0 TO WS-HOURS-WORKED (WS-CURRENT-INDEX)
+                   MOVE 0 TO WS-HOURLY-RATE (WS-CURRENT-INDEX)
+                   MOVE 0 TO WS-GROSS-PAY (WS-CURRENT-INDEX)
+                   MOVE 0 TO WS-TAX-AMOUNT (WS-CURRENT-INDEX)
+                   MOVE 0 TO WS-NET-PAY (WS-CURRENT-INDEX)
+                   MOVE 0 TO WS-REGULAR-PAY (WS-CURRENT-INDEX)
+                   MOVE 0 TO WS-OVERTIME-HOURS (WS-CURRENT-INDEX)
+                   MOVE 0 TO WS-OVERTIME-PAY (WS-CURRENT-INDEX)
+                   MOVE 'N' TO
+                       WS-PAYROLL-PROCESSED (WS-CURRENT-INDEX)
+
+
+                   SUBTRACT 1 FROM WS-EMPLOYEE-COUNT
+                   MOVE 0 TO WS-CURRENT-INDEX
+
+
+                   DISPLAY "Employee deleted successfully."
+                   DISPLAY " "
+               END-IF
+           END-IF.
+
+
+       SAVE-EMPLOYEES.
+           OPEN OUTPUT EMPLOYEE-FILE
+
+
+           PERFORM VARYING WS-SAVE-INDEX FROM 1 BY 1
+               UNTIL WS-SAVE-INDEX > WS-MAX-EMPLOYEES
+               IF WS-ACTIVE-FLAG (WS-SAVE-INDEX) = 'Y'
+                   MOVE WS-EMP-ID (WS-SAVE-INDEX)
+                       TO FILE-EMP-ID
+                   MOVE WS-EMP-NAME (WS-SAVE-INDEX)
+                       TO FILE-EMP-NAME
+                   MOVE WS-DEPARTMENT (WS-SAVE-INDEX)
+                       TO FILE-DEPARTMENT
+                   MOVE WS-HOURS-WORKED (WS-SAVE-INDEX)
+                       TO FILE-HOURS-WORKED
+                   MOVE WS-HOURLY-RATE (WS-SAVE-INDEX)
+                       TO FILE-HOURLY-RATE
+                   MOVE WS-GROSS-PAY (WS-SAVE-INDEX)
+                       TO FILE-GROSS-PAY
+                   MOVE WS-TAX-AMOUNT (WS-SAVE-INDEX)
+                       TO FILE-TAX-AMOUNT
+                   MOVE WS-NET-PAY (WS-SAVE-INDEX)
+                       TO FILE-NET-PAY
+                   MOVE WS-PAYROLL-PROCESSED (WS-SAVE-INDEX)
+                       TO FILE-PAYROLL-PROCESSED
+                   MOVE WS-OVERTIME-HOURS (WS-SAVE-INDEX)
+                       TO FILE-OVERTIME-HOURS
+                   MOVE WS-OVERTIME-PAY (WS-SAVE-INDEX)
+                       TO FILE-OVERTIME-PAY
+                   MOVE WS-REGULAR-PAY (WS-SAVE-INDEX)
+                       TO FILE-REGULAR-PAY
+                   MOVE WS-ACTIVE-FLAG (WS-SAVE-INDEX)
+                       TO FILE-ACTIVE-FLAG
+                   WRITE EMPLOYEE-FILE-RECORD
+               END-IF
+           END-PERFORM
+
+
+           CLOSE EMPLOYEE-FILE
+           DISPLAY " "
+           DISPLAY "Employees saved successfully."
+           DISPLAY " ".
+
+
+       LOAD-EMPLOYEES.
+           PERFORM CLEAR-EMPLOYEE-TABLE
+           MOVE 'N' TO WS-END-OF-FILE
+
+
+           OPEN INPUT EMPLOYEE-FILE
+
+
+           PERFORM UNTIL WS-END-OF-FILE = 'Y'
+               READ EMPLOYEE-FILE
+                   AT END
+                       MOVE 'Y' TO WS-END-OF-FILE
+                   NOT AT END
+                       IF WS-EMPLOYEE-COUNT < WS-MAX-EMPLOYEES
+                           ADD 1 TO WS-EMPLOYEE-COUNT
+                           MOVE WS-EMPLOYEE-COUNT TO WS-SAVE-INDEX
+
+
+                           MOVE FILE-EMP-ID
+                               TO WS-EMP-ID (WS-SAVE-INDEX)
+                           MOVE FILE-EMP-NAME
+                               TO WS-EMP-NAME (WS-SAVE-INDEX)
+                           MOVE FILE-DEPARTMENT
+                               TO WS-DEPARTMENT (WS-SAVE-INDEX)
+                           MOVE FILE-HOURS-WORKED
+                               TO WS-HOURS-WORKED (WS-SAVE-INDEX)
+                           MOVE FILE-HOURLY-RATE
+                               TO WS-HOURLY-RATE (WS-SAVE-INDEX)
+                           MOVE FILE-GROSS-PAY
+                               TO WS-GROSS-PAY (WS-SAVE-INDEX)
+                           MOVE FILE-TAX-AMOUNT
+                               TO WS-TAX-AMOUNT (WS-SAVE-INDEX)
+                           MOVE FILE-NET-PAY
+                               TO WS-NET-PAY (WS-SAVE-INDEX)
+                           MOVE FILE-PAYROLL-PROCESSED
+                               TO WS-PAYROLL-PROCESSED
+                               (WS-SAVE-INDEX)
+                           MOVE FILE-OVERTIME-HOURS
+                               TO WS-OVERTIME-HOURS
+                               (WS-SAVE-INDEX)
+                           MOVE FILE-OVERTIME-PAY
+                               TO WS-OVERTIME-PAY
+                               (WS-SAVE-INDEX)
+                           MOVE FILE-REGULAR-PAY
+                               TO WS-REGULAR-PAY
+                               (WS-SAVE-INDEX)
+                           MOVE FILE-ACTIVE-FLAG
+                               TO WS-ACTIVE-FLAG
+                               (WS-SAVE-INDEX)
+                       END-IF
+               END-READ
+           END-PERFORM
+
+
+           CLOSE EMPLOYEE-FILE
+
+
+           IF WS-EMPLOYEE-COUNT > 0
+               MOVE 1 TO WS-CURRENT-INDEX
+           ELSE
+               MOVE 0 TO WS-CURRENT-INDEX
+           END-IF
+
+
+           DISPLAY " "
+           DISPLAY "Employees loaded successfully."
+           DISPLAY "Employee count: " WS-EMPLOYEE-COUNT
+           DISPLAY " ".
+
+
+       CLEAR-EMPLOYEE-TABLE.
+           MOVE 0 TO WS-EMPLOYEE-COUNT
+           MOVE 0 TO WS-CURRENT-INDEX
+           PERFORM VARYING WS-SAVE-INDEX FROM 1 BY 1
+               UNTIL WS-SAVE-INDEX > WS-MAX-EMPLOYEES
+               MOVE 0 TO WS-EMP-ID (WS-SAVE-INDEX)
+               MOVE SPACES TO WS-EMP-NAME (WS-SAVE-INDEX)
+               MOVE SPACES TO WS-DEPARTMENT (WS-SAVE-INDEX)
+               MOVE 0 TO WS-HOURS-WORKED (WS-SAVE-INDEX)
+               MOVE 0 TO WS-HOURLY-RATE (WS-SAVE-INDEX)
+               MOVE 0 TO WS-GROSS-PAY (WS-SAVE-INDEX)
+               MOVE 0 TO WS-TAX-AMOUNT (WS-SAVE-INDEX)
+               MOVE 0 TO WS-NET-PAY (WS-SAVE-INDEX)
+               MOVE 'N' TO WS-PAYROLL-PROCESSED (WS-SAVE-INDEX)
+               MOVE 0 TO WS-OVERTIME-HOURS (WS-SAVE-INDEX)
+               MOVE 0 TO WS-OVERTIME-PAY (WS-SAVE-INDEX)
+               MOVE 0 TO WS-REGULAR-PAY (WS-SAVE-INDEX)
+               MOVE 'N' TO WS-ACTIVE-FLAG (WS-SAVE-INDEX)
+           END-PERFORM.
